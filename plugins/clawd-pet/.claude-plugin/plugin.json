@@ -1,11 +1,23 @@
 {
   "name": "clawd-pet",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Clawd lives above your prompt and reacts to what Claude Code is doing",
-  "author": { "name": "Revono", "url": "https://github.com/Revono" },
+  "author": {
+    "name": "Revono",
+    "url": "https://github.com/Revono"
+  },
   "homepage": "https://github.com/Revono/clawd-pet",
   "repository": "https://github.com/Revono/clawd-pet",
   "license": "MIT",
-  "keywords": ["clawd", "pet", "mod", "claude-code-mod"],
-  "types": "./types/index.d.ts"
+  "keywords": [
+    "clawd",
+    "pet",
+    "mod",
+    "claude-code-mod"
+  ],
+  "types": "./types/index.d.ts",
+  "supportUrl": "https://github.com/Revono/clawd-pet/issues",
+  "documentationUrl": "https://github.com/Revono/clawd-pet#readme",
+  "privacyPolicyUrl": "https://github.com/Revono/clawd-pet#privacy",
+  "termsOfServiceUrl": "https://github.com/Revono/clawd-pet/blob/main/LICENSE"
 }

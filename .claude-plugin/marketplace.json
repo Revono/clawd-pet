@@ -9,7 +9,7 @@
       "name": "clawd-pet",
       "source": "./plugins/clawd-pet",
       "description": "Clawd lives above your prompt and reacts to what Claude Code is doing",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "category": "fun",
       "keywords": ["clawd", "pet", "mod"]
     }
