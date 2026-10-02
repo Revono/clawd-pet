@@ -654,12 +654,12 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('tool.check', async ($, e, next) => {
-    const verdict = await next(e)
-    if (verdict.decision === 'ask') {
-      await setBase($, 'needs', `${e.tool.replace(/^mcp__/, '')} wants to run`, 'permission')
+  // only when a real permission dialog shows up, so bypass / auto modes stay quiet
+  on('classic.PermissionRequest', async ($, e, next) => {
+    if (e.permission_mode !== 'bypassPermissions') {
+      await setBase($, 'needs', `${e.tool_name.replace(/^mcp__/, '')} wants to run`, 'permission')
     }
-    return verdict
+    return next(e)
   })
 
   on('tool.call', async ($, e, next) => {
