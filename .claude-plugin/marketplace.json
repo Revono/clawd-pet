@@ -1,0 +1,17 @@
+{
+  "name": "clawd-pet",
+  "owner": { "name": "Revono", "url": "https://github.com/Revono" },
+  "metadata": {
+    "description": "Clawd as a little pet above your Claude Code prompt"
+  },
+  "plugins": [
+    {
+      "name": "clawd-pet",
+      "source": "./plugins/clawd-pet",
+      "description": "Clawd lives above your prompt and reacts to what Claude Code is doing",
+      "version": "1.0.0",
+      "category": "fun",
+      "keywords": ["clawd", "pet", "mod"]
+    }
+  ]
+}
