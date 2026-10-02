@@ -54,6 +54,19 @@ it's just a mod: one hooks file and the pixel art. no build, no deps. code is in
 
 ideas or a new look for him? open an issue or PR
 
+## privacy
+
+everything stays on your machine. clawd sends nothing anywhere, makes no network calls and starts no other programs.
+
+what he looks at, and why:
+
+- **your prompts** only to spot frustration for the tantrum. never changed
+- **tool calls** to show what runs right now (tool name, file name, command or pattern) and to see if tests passed. never changed or blocked, he just watches
+- **permission dialogs** only to know when claude waits for you. he never decides anything, the dialog works like normal
+- **compaction and turn end** to show compacting and done
+
+he saves two small things with claude code's own storage: your `/clawd` settings and how many tools ran today
+
 ---
 
 <sub>fan project, not from Anthropic. Clawd is their mascot, i just gave him a home above the prompt</sub>

@@ -27,9 +27,10 @@ const toolsToday = atom({ plugin: 'clawd-pet', key: 'toolsToday' } as const, {
   count: 0,
 } as ToolsToday)
 const demoStart = atom({ plugin: 'clawd-pet', key: 'demoStart' } as const, null as number | null)
-const tzOffset = atom({ plugin: 'clawd-pet', key: 'tzOffset' } as const, null as number | null)
 
 type Dollar = EngineInterface
+
+const SETTINGS_KEY = 'settings'
 
 async function setBase($: Dollar, kind: BaseKind, line = '', detail = '') {
   const since = await $.clock.now()
@@ -41,13 +42,17 @@ async function react($: Dollar, kind: ReactionKind, line: string, ms: number) {
   await update($, reaction, () => ({ kind, line, until }))
 }
 
+async function saveSettings($: Dollar, patch: Partial<Settings>) {
+  await update($, settings, s => ({ ...s, ...patch }))
+  await $.store.set(SETTINGS_KEY, await read($, settings))
+}
+
 // ---------------------------------------------------------------- time
 
 type Local = { year: number; month: number; day: number; hour: number; minute: number }
 
-function localTime(now: number, offsetMin: number | null): Local {
-  const offset = offsetMin ?? -new Date(now).getTimezoneOffset()
-  const d = new Date(now + offset * 60_000)
+function localTime(now: number): Local {
+  const d = new Date(now - new Date(now).getTimezoneOffset() * 60_000)
   return {
     year: d.getUTCFullYear(),
     month: d.getUTCMonth() + 1,
@@ -60,28 +65,6 @@ function localTime(now: number, offsetMin: number | null): Local {
 const pad = (n: number) => String(n).padStart(2, '0')
 const dateKey = (l: Local) => `${l.year}-${pad(l.month)}-${pad(l.day)}`
 const clock = (l: Local) => `${pad(l.hour)}:${pad(l.minute)}`
-
-async function detectOffset($: Dollar): Promise<number | null> {
-  try {
-    const r = await $.process.run(['date', '+%z'], { timeoutMs: 5_000 })
-    const m = /^([+-])(\d\d)(\d\d)/.exec(r.stdout.trim())
-    if (r.exitCode === 0 && m) return (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3]))
-  } catch {}
-  try {
-    const r = await $.process.run(
-      [
-        'powershell',
-        '-NoProfile',
-        '-Command',
-        '[int][TimeZoneInfo]::Local.GetUtcOffset([DateTime]::Now).TotalMinutes',
-      ],
-      { timeoutMs: 15_000 },
-    )
-    const n = Number(r.stdout.trim())
-    if (r.exitCode === 0 && Number.isFinite(n)) return n
-  } catch {}
-  return null
-}
 
 // ---------------------------------------------------------------- calendar
 
@@ -553,8 +536,20 @@ const DEMO_MS = 3_500
 
 // ---------------------------------------------------------------- hooks
 
-const SETTINGS_KEY = 'settings'
 const TOOLS_KEY = 'tools-today'
+
+async function onTick($: Dollar) {
+  if ((await read($, settings)).isHidden) return
+  await update($, tick, t => (t + 1) % 100_000)
+  const start = await read($, demoStart)
+  if (start !== null && (await $.clock.now()) - start > DEMOS.length * DEMO_MS) {
+    await update($, demoStart, () => null)
+  }
+}
+
+async function pet($: Dollar) {
+  await react($, 'loved', pick(PET_REPLIES), 4_000)
+}
 
 export const register: Register = on => {
   let isTurnRunning = false
@@ -573,35 +568,22 @@ export const register: Register = on => {
     const tools = (await $.store.get(TOOLS_KEY)) as ToolsToday | undefined
     if (tools) await update($, toolsToday, () => tools)
     await setBase($, 'hi')
-    void detectOffset($).then(offset => update($, tzOffset, () => offset))
-
-    $.clock.every(250, async () => {
-      if ((await read($, settings)).isHidden) return
-      await update($, tick, t => (t + 1) % 100_000)
-      const start = await read($, demoStart)
-      if (start !== null && (await $.clock.now()) - start > DEMOS.length * DEMO_MS) {
-        await update($, demoStart, () => null)
-      }
-    })
+    $.clock.every(250, () => void onTick($))
 
     return next(e)
   })
 
   on('command.run', { command: 'clawd' }, async ($, e) => {
     const [word = '', value = ''] = e.args.trim().toLowerCase().split(/\s+/)
-    const save = async (patch: Partial<Settings>) => {
-      await update($, settings, s => ({ ...s, ...patch }))
-      await $.store.set(SETTINGS_KEY, await read($, settings))
-    }
     const onOff = (v: string) => v !== 'off' && v !== 'false' && v !== '0'
 
     if (word === '') {
       const hidden = !(await read($, settings)).isHidden
-      await save({ isHidden: hidden })
+      await saveSettings($, { isHidden: hidden })
       return { text: hidden ? 'Clawd went to nap.' : 'Clawd is back.' }
     }
     if (word === 'on' || word === 'off') {
-      await save({ isHidden: word === 'off' })
+      await saveSettings($, { isHidden: word === 'off' })
       return { text: word === 'off' ? 'Clawd went to nap.' : 'Clawd is back.' }
     }
     if (word === 'demo') {
@@ -609,7 +591,7 @@ export const register: Register = on => {
         await update($, demoStart, () => null)
         return { text: 'Demo stopped.' }
       }
-      await save({ isHidden: false })
+      await saveSettings($, { isHidden: false })
       const start = await $.clock.now()
       await update($, demoStart, () => start)
       return {
@@ -617,11 +599,11 @@ export const register: Register = on => {
       }
     }
     if (word === 'moods' || word === 'reactions' || word === 'tantrums') {
-      await save({ [word]: onOff(value) })
+      await saveSettings($, { [word]: onOff(value) })
       return { text: `Clawd ${word}: ${onOff(value) ? 'on' : 'off'}` }
     }
     if (word === 'hemisphere' && (value === 'north' || value === 'south')) {
-      await save({ hemisphere: value })
+      await saveSettings($, { hemisphere: value })
       return { text: `Clawd seasons: ${value}ern hemisphere` }
     }
     const s = await read($, settings)
@@ -676,7 +658,7 @@ export const register: Register = on => {
     })
 
     const now = await $.clock.now()
-    const today = dateKey(localTime(now, await read($, tzOffset)))
+    const today = dateKey(localTime(now))
     await update($, toolsToday, t =>
       t.date === today ? { date: today, count: t.count + 1 } : { date: today, count: 1 },
     )
@@ -736,7 +718,7 @@ export const register: Register = on => {
     const now = await $.clock.now()
     let b = await read($, base)
     let r = await read($, reaction)
-    let l = localTime(now, await read($, tzOffset))
+    let l = localTime(now)
     const counted = await read($, toolsToday)
     const tools = counted.date === dateKey(l) ? counted.count : 0
     let effective = s
@@ -757,7 +739,6 @@ export const register: Register = on => {
     const scene = compose(b, r, effective, l, now, t, tools)
     const canvas = draw(scene.look, t)
     const sub = demoLabel ? `${scene.sub ? scene.sub + '  ·  ' : ''}${demoLabel}` : scene.sub
-    const petHim = () => react($, 'loved', pick(PET_REPLIES), 4_000)
 
     if (e.surface === 'terminal') {
       const { Box, Text, Button, Raster } = $.ui.resolve(e)
@@ -776,7 +757,7 @@ export const register: Register = on => {
               {sub}
             </Text>
           </Box>
-          <Button key="pet" label="pet" hotkey="p" plain onPress={petHim} />
+          <Button key="pet" label="pet" hotkey="p" plain onPress={() => void pet($)} />
         </Box>
       )
     }
@@ -801,7 +782,7 @@ export const register: Register = on => {
             {sub}
           </Text>
         </Box>
-        <Button key="pet" onPress={petHim}>
+        <Button key="pet" onPress={() => void pet($)}>
           Pet
         </Button>
       </Box>

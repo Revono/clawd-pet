@@ -32,7 +32,6 @@ declare module 'claude-code' {
       tick: number
       toolsToday: ToolsToday
       demoStart: number | null
-      tzOffset: number | null
     }
   }
 }

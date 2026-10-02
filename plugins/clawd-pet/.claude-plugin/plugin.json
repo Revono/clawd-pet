@@ -1,6 +1,6 @@
 {
   "name": "clawd-pet",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Clawd lives above your prompt and reacts to what Claude Code is doing",
   "author": { "name": "Revono", "url": "https://github.com/Revono" },
   "homepage": "https://github.com/Revono/clawd-pet",
