@@ -194,7 +194,7 @@ const SUN = [
   ['..Y..', '.YYY.', 'YYAYY', '.YYY.', '..Y..'],
 ]
 const MUG = ['WNNW..', 'WWWWW.', 'WWWW.W', 'WWWWW.', '.WWW..']
-const FLAG = ['RRRRR', 'RRWRR', 'RWWWR', 'RRWRR', 'RRRRR']
+const FLAG = ['RRRRRRR', 'RRRWRRR', 'RRRWRRR', 'RWWWWWR', 'RRRWRRR', 'RRRWRRR', 'RRRRRRR']
 const HEART = ['P.P', 'PPP', '.P.']
 const ZED = ['gggg', '..g.', '.g..', 'gggg']
 const GLASSES = ['KKKKKKKKKK', 'bKK....bKK']
@@ -427,10 +427,13 @@ export function draw(look: Look, t: number): Canvas {
   const mid = new Canvas()
   const front = new Canvas()
 
+  // weather and fireworks first, so props stay whole in front of them
+  drawParticles(back, front, look, t)
+
   if (look.hasSun) back.sprite(SUN[Math.floor(t / 4) % 2], 0, 0)
   if (look.hasFlag) {
-    back.rect(0, 4, 1, 14, PAL.g)
-    back.sprite(FLAG, 1, 4)
+    back.rect(0, 3, 1, 15, PAL.g)
+    back.sprite(FLAG, 1, 3)
   }
   if (look.hasMug) {
     back.sprite(MUG, 0, H - MUG.length)
@@ -439,8 +442,6 @@ export function draw(look: Look, t: number): Canvas {
       back.set(1 + k * 2 + (phase % 2), H - MUG.length - 1 - phase, PAL.g)
     }
   }
-
-  drawParticles(back, front, look, t)
   drawClawd(mid, look, t)
 
   if (look.isFlipped) {
