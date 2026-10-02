@@ -195,7 +195,7 @@ const SUN = [
 ]
 const MUG = ['WNNW..', 'WWWWW.', 'WWWW.W', 'WWWWW.', '.WWW..']
 const FLAG = ['RRRRRRR', 'RRRWRRR', 'RRRWRRR', 'RWWWWWR', 'RRRWRRR', 'RRRWRRR', 'RRRRRRR']
-const HEART = ['P.P', 'PPP', '.P.']
+const HEART = ['PP.PP', 'PPPPP', '.PPP.', '..P..']
 const ZED = ['gggg', '..g.', '.g..', 'gggg']
 const GLASSES = ['KKKKKKKKKK', 'bKK....bKK']
 
@@ -285,10 +285,11 @@ function drawClawd(c: Canvas, look: Look, t: number) {
         c.set(ex + 1, ey + 1, D)
         break
       case 'angry':
-        c.rect(ex, ey, 1, 2, D)
-        c.set(ex - inward, ey - 2, D)
-        c.set(ex, ey - 2, D)
-        c.set(ex + inward, ey - 1, D)
+        // one row lower than usual, so the brows sit inside the body
+        c.rect(ex, ey + 1, 1, 2, D)
+        c.set(ex - inward, ey - 1, D)
+        c.set(ex, ey - 1, D)
+        c.set(ex + inward, ey, D)
         break
     }
   }
@@ -311,30 +312,45 @@ function drawClawd(c: Canvas, look: Look, t: number) {
   }
 }
 
+// evenly over the width, with a little jitter, so weather never clumps on one side
+function spread(i: number, n: number) {
+  return Math.floor(((i + 0.2 + rand(i + 99) * 0.6) / n) * W)
+}
+
+// the top right corner is the icon's: keep weather out of it while an icon shows
+const ICON_ZONE = { x: 25, y: 9 }
+
 function drawParticles(back: Canvas, front: Canvas, look: Look, t: number) {
+  const weather = (x: number, y: number, c: number) => {
+    if (look.icon && x >= ICON_ZONE.x && y <= ICON_ZONE.y) return
+    back.set(x, y, c)
+  }
   for (const p of look.particles) {
     switch (p) {
       case 'snow':
         for (let i = 0; i < 12; i++) {
-          const x = Math.floor(rand(i) * W + Math.sin((t + i * 5) / 4))
+          const x = spread(i, 12) + Math.round(Math.sin((t + i * 5) / 4))
           const y = (Math.floor(t / 2) + Math.floor(rand(i + 50) * H)) % H
-          back.set(x, y, PAL.W)
+          weather(x, y, PAL.W)
         }
         break
       case 'petals':
         for (let i = 0; i < 8; i++) {
+          const x = (spread(i, 8) + Math.floor(t / 4)) % W
           const y = (Math.floor(t / 3) + Math.floor(rand(i + 7) * H)) % H
-          const x = (Math.floor(rand(i) * W) + Math.floor(t / 4)) % W
-          back.set(x, y, PAL.P)
+          weather(x, y, PAL.P)
         }
         break
       case 'leaves':
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 7; i++) {
+          const x = spread(i, 7) + Math.round(1.5 * Math.sin((t + i * 3) / 3))
           const y = (Math.floor(t / 2) + Math.floor(rand(i + 3) * H)) % H
-          const x = Math.floor(rand(i + 9) * W + 2 * Math.sin((t + i * 3) / 3))
           const color = [PAL.R, PAL.A, PAL.Y][i % 3]
-          back.set(x, y, color)
-          back.set(x + 1, y, color)
+          // a tiny leaf, tipping left and right as it falls
+          const flip = Math.floor((t + i) / 3) % 2 === 0
+          weather(x, y, color)
+          weather(x + 1, y + (flip ? 1 : 0), color)
+          weather(x, y + 1, color)
         }
         break
       case 'confetti':
@@ -409,7 +425,7 @@ function drawParticles(back: Canvas, front: Canvas, look: Look, t: number) {
       case 'hearts':
         for (let k = 0; k < 3; k++) {
           const phase = (t + k * 3) % 9
-          const x = [3, 15, 27][k] + Math.round(Math.sin((t + k) / 2))
+          const x = [2, 14, 27][k] + Math.round(Math.sin((t + k) / 2))
           front.sprite(HEART, x, 8 - phase)
         }
         break
