@@ -109,8 +109,8 @@ export class Canvas {
     return x >= 0 && x < W && y >= 0 && y < H ? this.px[y * W + x] : NONE
   }
 
-  rect(x: number, y: number, w: number, h: number, c: number) {
-    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.set(x + i, y + j, c)
+  rect(x: number, y: number, w: number, height: number, c: number) {
+    for (let j = 0; j < height; j++) for (let i = 0; i < w; i++) this.set(x + i, y + j, c)
   }
 
   sprite(rows: readonly string[], x: number, y: number) {
@@ -248,10 +248,10 @@ function drawClawd(c: Canvas, look: Look, t: number) {
   const legXs = [4, 6, 11, 13]
   legXs.forEach((lx, i) => {
     let x = x0 + lx
-    let h = 2
+    let legH = 2
     if (look.legs === 'walk' && t % 2 === 1) x += 1
-    if (look.legs === 'stomp' && (i < 2) === (t % 2 === 0)) h = 1
-    c.rect(x, legY, 1, h, O)
+    if (look.legs === 'stomp' && (i < 2) === (t % 2 === 0)) legH = 1
+    c.rect(x, legY, 1, legH, O)
   })
 
   // eyes at 5 and 12, rows 2..3 of the body

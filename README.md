@@ -62,7 +62,7 @@ what he looks at, and why:
 
 - **your prompts** only to spot frustration for the tantrum. never changed
 - **tool calls** to show what runs right now (tool name, file name, command or pattern) and to see if tests passed. never changed or blocked, he just watches
-- **permission dialogs** only to know when claude waits for you. he never decides anything, the dialog works like normal
+- **permission dialogs** (the `PermissionRequest` hook) only to know when claude waits for you, so he can say "Needs you!". he never answers or decides anything, the request goes on unchanged and the dialog works like normal
 - **compaction and turn end** to show compacting and done
 
 he saves two small things with claude code's own storage: your `/clawd` settings and how many tools ran today

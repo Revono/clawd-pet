@@ -80,9 +80,9 @@ function season(l: Local, hemisphere: Settings['hemisphere']): Season {
 }
 
 function holiday(l: Local): Holiday | undefined {
-  const { month: m, day: d, hour: h } = l
+  const { month: m, day: d, hour } = l
   if (m === 12 && d >= 24 && d <= 26) return 'xmas'
-  if ((m === 12 && d === 31 && h >= 18) || (m === 1 && d === 1)) return 'newyear'
+  if ((m === 12 && d === 31 && hour >= 18) || (m === 1 && d === 1)) return 'newyear'
   if (m === 8 && d === 1) return 'swiss'
   if (m === 10 && d === 31) return 'halloween'
   if (m === 4 && d === 1) return 'april'
@@ -90,8 +90,8 @@ function holiday(l: Local): Holiday | undefined {
   return undefined
 }
 
-function holidayText(h: Holiday, l: Local): [string, string] {
-  switch (h) {
+function holidayText(day: Holiday, l: Local): [string, string] {
+  switch (day) {
     case 'xmas':
       return ['Merry Xmas!', 'ho ho ho']
     case 'newyear':
