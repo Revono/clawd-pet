@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import type { Base, BaseKind, Reaction, ReactionKind, Settings, ToolsToday } from '../types'
 import { BASE_LOOK, draw, toMiniRaster, toRaster, toSvg } from './sprites'
@@ -29,7 +29,7 @@ const toolsToday = atom({ plugin: 'clawd-pet', key: 'toolsToday' } as const, {
 const demoStart = atom({ plugin: 'clawd-pet', key: 'demoStart' } as const, null as number | null)
 const tzOffset = atom({ plugin: 'clawd-pet', key: 'tzOffset' } as const, null as number | null)
 
-type Dollar = Parameters<typeof read>[0]
+type Dollar = EngineInterface
 
 async function setBase($: Dollar, kind: BaseKind, line = '', detail = '') {
   const since = await $.clock.now()
@@ -190,7 +190,7 @@ function pick(list: string[]) {
 }
 
 const FRUSTRATED =
-  /\b(wtf|wth|ffs|omg|ugh+|argh+|damn|dammit|shit|crap|still (not|broken|failing|wrong|doesn'?t)|doesn'?t work|not working|does not work|why (is|does|won'?t|isn'?t)|seriously|come on|cmon|stupid|useless|i said|what the|nope|scheiss\w*|verdammt|gopf\w*|huere\w*|chabis|nid (gange|funktioniert)|geit nid|funktioniert (immer no |immer noch )?(nid|nicht)|isch kaputt|wieso|warum)\b|!!+|\?\?+|\?!|!\?/i
+  /\b(wtf|wth|ffs|omg|ugh+|argh+|damn|dammit|shit|crap|still (not|broken|failing|wrong|doesn'?t)|doesn'?t work|not working|does not work|why (is|does|won'?t|isn'?t)|seriously|come on|cmon|stupid|useless|i said|what the|nope|scheiss\w*|verdammt|gopf\w*|huere\w*|chabis|nid (gange|funktioniert)|geit nid|funktioniert (immer no |immer noch )?(nid|nicht)|isch kaputt)\b|!!+|\?\?+|\?!|!\?/i
 
 function isFrustrated(text: string) {
   if (FRUSTRATED.test(text)) return true
@@ -246,6 +246,10 @@ function lineFor(tool: string, input: Record<string, unknown>) {
 
 const TEST_CMD =
   /\b(flutter test|dart test|npm (run )?test|pnpm (run )?test|yarn test|bun test|npx (jest|vitest)|jest|vitest|pytest|go test|cargo test|gradlew?( \S+)* test|mvn test|dotnet test|rspec|phpunit|deno test)\b/
+
+// installing a test runner is not running the tests
+const INSTALL_CMD =
+  /\b(npm|pnpm|yarn|bun) (i|install|add)\b|\bpip install\b|\bcargo add\b|\b(dart|flutter) pub add\b/
 
 function testSummary(out: string): { isFail: boolean; summary: string } | null {
   const failed = /(\d+)\s+(tests?\s+)?(failed|failing|failures?)/i.exec(out)
@@ -557,6 +561,7 @@ export const register: Register = on => {
   let turnStartedAt = 0
   let turnTools = 0
   let frustrations: number[] = []
+  let toolsInFlight = 0
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -665,7 +670,10 @@ export const register: Register = on => {
     else if (e.tool === 'ExitPlanMode') await setBase($, 'needs', 'plan is ready for review', 'plan')
     else await setBase($, 'working', lineFor(e.tool, input), e.tool)
 
-    const ran = await next(e)
+    toolsInFlight++
+    const ran = await next(e).finally(() => {
+      toolsInFlight = Math.max(0, toolsInFlight - 1)
+    })
 
     const now = await $.clock.now()
     const today = dateKey(localTime(now, await read($, tzOffset)))
@@ -675,7 +683,8 @@ export const register: Register = on => {
     void $.store.set(TOOLS_KEY, await read($, toolsToday))
 
     const command = String(input.command ?? '')
-    const isTest = (e.tool === 'Bash' || e.tool === 'PowerShell') && TEST_CMD.test(command)
+    const isTest =
+      (e.tool === 'Bash' || e.tool === 'PowerShell') && TEST_CMD.test(command) && !INSTALL_CMD.test(command)
     if (ran.deny !== undefined) {
       await react($, 'oops', `${e.tool} not allowed`, 2_200)
     } else if (isTest) {
@@ -686,11 +695,13 @@ export const register: Register = on => {
       await react($, 'oops', `${e.tool.replace(/^mcp__/, '')} failed`, 2_200)
     }
 
-    if (isTurnRunning) await setBase($, 'thinking', pick(VERBS))
+    // with parallel tools, stay on working until the last one is back
+    if (isTurnRunning && toolsInFlight === 0) await setBase($, 'thinking', pick(VERBS))
     return ran
   })
 
   on('session.compact', async ($, e, next) => {
+    if (e.agentId) return next(e)
     await setBase($, 'compacting')
     const result = await next(e)
     if (isTurnRunning) await setBase($, 'thinking', pick(VERBS))
@@ -699,14 +710,26 @@ export const register: Register = on => {
   })
 
   on('turn.complete', async ($, e, next) => {
+    // a subagent finishing is not the main turn finishing
+    if (e.agentId) return next(e)
     isTurnRunning = false
-    const ms = (await $.clock.now()) - turnStartedAt
+    toolsInFlight = 0
+    if (e.isAborted || e.reason === 'aborted') {
+      await setBase($, 'idle')
+      return next(e)
+    }
+    if (e.reason === 'error' || e.reason === 'refusal') {
+      await setBase($, 'idle')
+      await react($, 'oops', e.reason === 'error' ? 'the turn ended with an error' : 'claude refused that one', 2_200)
+      return next(e)
+    }
+    const ms = e.durationMs > 0 ? e.durationMs : (await $.clock.now()) - turnStartedAt
     await setBase($, 'done', `${duration(ms)} · ${turnTools} tool${turnTools === 1 ? '' : 's'}`)
     return next(e)
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const s = await read($, settings)
+    const s: Settings = { ...(await read($, settings)) } as Settings
     if (e.props.hasSurvey || s.isHidden) return next(e)
 
     const t = await read($, tick)

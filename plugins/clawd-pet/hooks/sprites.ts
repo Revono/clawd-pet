@@ -503,7 +503,8 @@ export function toSvg(c: Canvas, dim: number) {
 const DEFAULT = 0x01000000
 
 function encode(words: number[]) {
-  return new Uint8Array(Uint32Array.from(words).buffer).toBase64()
+  const bytes = new Uint8Array(Uint32Array.from(words).buffer) as Uint8Array & { toBase64(): string }
+  return bytes.toBase64()
 }
 
 // Full size: one cell per pixel column, two pixel rows per cell.
